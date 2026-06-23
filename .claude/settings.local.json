@@ -4,7 +4,11 @@
       "Bash(mkdir -p \"C:\\\\Users\\\\Remakker\\\\Code\\\\Projs-Web\\\\EMDR-lite\\\\.claude\")",
       "mcp__Claude_Preview__preview_start",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(gh pr create --title 'Add EMDR bilateral stimulation tool' --body ' *)",
+      "WebFetch(domain:bilateralfocus.com)",
+      "mcp__Claude_in_Chrome__navigate"
     ]
   }
 }
