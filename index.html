@@ -3,20 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Free Online EMDR & Bilateral Stimulation Tool</title>
+  <title>EMDR-lite</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:        #12141e;
-      --panel:     #1c1f2e;
-      --accent:    #a8b8e8;
-      --accent2:   #4a5580;
-      --text:      #d0d8f0;
-      --subtext:   #7880a8;
-      --btn-start: #6aab88;
-      --btn-stop:  #b87878;
-      --canvas-bg: #1a1f35;
+      --bg:        #000000;
+      --panel:     #0d0d0d;
+      --accent:    #9aabdc;
+      --accent2:   #2a3050;
+      --text:      #c8d0e8;
+      --subtext:   #5a6080;
+      --btn-main:  #5a7acc;
+      --canvas-bg: #080810;
       --ball-l:    #d8a0b8;
       --ball-r:    #90b8d8;
     }
@@ -29,226 +28,451 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 32px 16px 48px;
+      padding: 28px 0 48px;
+      user-select: auto;
     }
 
     h1 {
-      font-size: clamp(1.3rem, 3vw, 1.9rem);
+      font-size: clamp(1.1rem, 2.5vw, 1.7rem);
       font-weight: 800;
       color: var(--accent);
       text-align: center;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
 
     .subtitle {
       color: var(--subtext);
-      font-size: 0.95rem;
+      font-size: 0.88rem;
       text-align: center;
-      margin-bottom: 24px;
-    }
-
-    .controls-top {
-      display: flex;
-      gap: 12px;
       margin-bottom: 20px;
     }
 
+    /* ── Top bar ── */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
     button {
-      padding: 12px 32px;
-      font-size: 1rem;
+      padding: 10px 28px;
+      font-size: 0.95rem;
       font-weight: 700;
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      transition: filter 0.15s, transform 0.1s;
+      transition: filter 0.15s, transform 0.1s, opacity 0.3s;
       color: #fff;
+      height: 42px;
     }
-    button:hover  { filter: brightness(1.08); }
+    button:hover  { filter: brightness(1.12); }
     button:active { transform: scale(0.96); }
-    button:disabled { opacity: 0.4; cursor: not-allowed; filter: none; }
 
-    #btnStart { background: var(--btn-start); }
-    #btnStop  { background: var(--btn-stop); }
+    #btnToggle {
+      background: var(--btn-main);
+      min-width: 150px;
+    }
+    #btnToggle.running {
+      background: #7a3a3a;
+      opacity: 0.38;
+    }
+    #btnToggle.running:hover { opacity: 0.6; }
+
+    #btnFullscreen {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      padding: 0 14px;
+      font-size: 1.1rem;
+    }
+
+    #btnLang {
+      background: transparent;
+      border: 1px solid var(--accent2);
+      color: var(--subtext);
+      padding: 0 12px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+    #btnLang:hover { color: var(--accent); border-color: var(--accent); }
+
+    /* ── Wrapper ── */
+    #resizable {
+      position: relative;
+      width: min(900px, 100vw - 32px);
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+    }
 
     /* ── Canvas ── */
     #canvas-wrap {
       width: 100%;
-      max-width: 900px;
       aspect-ratio: 16 / 7;
       background: var(--canvas-bg);
-      border-radius: 20px;
+      border-radius: 16px;
       position: relative;
       overflow: hidden;
-      margin-bottom: 24px;
-      box-shadow: 0 4px 24px rgba(100,120,180,0.13);
+      margin-bottom: 10px;
+      box-shadow: 0 4px 32px rgba(80,100,180,0.10);
+    }
+
+    :fullscreen body,
+    :-webkit-full-screen body {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    /* hide everything in fullscreen except canvas, stop button and handle */
+    :fullscreen h1,        :-webkit-full-screen h1,
+    :fullscreen .subtitle, :-webkit-full-screen .subtitle,
+    :fullscreen .settings, :-webkit-full-screen .settings,
+    :fullscreen #timer,    :-webkit-full-screen #timer,
+    :fullscreen .hint,     :-webkit-full-screen .hint {
+      display: none !important;
+    }
+
+    /* float top-bar and handle above the fixed canvas */
+    :fullscreen .top-bar,
+    :-webkit-full-screen .top-bar {
+      position: fixed;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10000;
+    }
+
+    :fullscreen #resize-handle,
+    :-webkit-full-screen #resize-handle {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10000;
+      margin: 0;
+    }
+
+    :fullscreen #resizable,
+    :-webkit-full-screen #resizable {
+      width: 100vw !important;
+    }
+
+    :fullscreen #canvas-wrap,
+    :-webkit-full-screen #canvas-wrap {
+      position: fixed;
+      top: 0;
+      left: var(--fs-pad, 0px);
+      right: var(--fs-pad, 0px);
+      width: auto !important;
+      height: 100vh !important;
+      aspect-ratio: unset;
+      border-radius: 0;
+      margin: 0;
+      z-index: 9999;
+      overflow: visible;
     }
 
     .ball {
-      width: 70px;
-      height: 70px;
+      width: 70px; height: 70px;
       border-radius: 50%;
       position: absolute;
-      top: 50%;
-      left: 50%;
-      /* start hidden at center */
+      top: 50%; left: 50%;
       transform: translate(-50%, -50%);
       opacity: 0;
       will-change: transform, opacity;
     }
+    #leftBall  { background: radial-gradient(circle at 35% 35%, #ffd6e0, var(--ball-l)); box-shadow: 0 4px 20px rgba(240,140,160,0.4); }
+    #rightBall { background: radial-gradient(circle at 35% 35%, #daeeff, var(--ball-r)); box-shadow: 0 4px 20px rgba(140,180,240,0.4); }
+    #singleBall { display: none; background: radial-gradient(circle at 35% 35%, #e8d0f0, #b890d8); box-shadow: 0 4px 20px rgba(180,120,220,0.45); }
 
-    #leftBall {
-      background: radial-gradient(circle at 35% 35%, #ffd6e0, var(--ball-l));
-      box-shadow: 0 4px 20px rgba(240,140,160,0.4);
+    /* ── Resize handle ── */
+    #resize-handle {
+      width: 48px; height: 8px;
+      margin: 4px auto 14px;
+      border-radius: 4px;
+      background: #2a2a40;
+      cursor: ew-resize;
+      transition: background 0.15s;
     }
-
-    #rightBall {
-      background: radial-gradient(circle at 35% 35%, #daeeff, var(--ball-r));
-      box-shadow: 0 4px 20px rgba(140,180,240,0.4);
-    }
+    #resize-handle:hover { background: var(--accent2); }
 
     /* ── Settings ── */
     .settings {
-      width: 100%;
-      max-width: 900px;
+      width: min(900px, 100vw - 32px);
       background: var(--panel);
-      border-radius: 16px;
-      padding: 24px 28px;
+      border-radius: 14px;
+      padding: 20px 24px;
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 20px 48px;
-      box-shadow: 0 2px 12px rgba(100,120,180,0.08);
+      gap: 18px 44px;
     }
+    @media (max-width: 560px) { .settings { grid-template-columns: 1fr; } }
 
-    @media (max-width: 600px) {
-      .settings { grid-template-columns: 1fr; }
-    }
-
-    .setting-row { display: flex; flex-direction: column; gap: 6px; }
-
+    .setting-row { display: flex; flex-direction: column; gap: 5px; }
     .setting-row label {
       color: var(--accent);
-      font-size: 0.88rem;
+      font-size: 0.83rem;
       font-weight: 700;
       letter-spacing: 0.02em;
     }
 
     input[type=range] {
       -webkit-appearance: none;
-      width: 100%;
-      height: 6px;
+      width: 100%; height: 5px;
       border-radius: 3px;
       background: var(--accent2);
       outline: none;
     }
     input[type=range]::-webkit-slider-thumb {
       -webkit-appearance: none;
-      width: 18px; height: 18px;
+      width: 16px; height: 16px;
       border-radius: 50%;
       background: var(--accent);
       cursor: pointer;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
     }
 
     select {
-      background: var(--bg);
+      background: #111;
       color: var(--text);
       border: 1.5px solid var(--accent2);
       border-radius: 7px;
-      padding: 6px 10px;
-      font-size: 0.92rem;
+      padding: 5px 9px;
+      font-size: 0.88rem;
       cursor: pointer;
       width: 100%;
     }
 
-    /* canvas color swatches */
-    .swatch-group { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+    .swatch-group { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 3px; }
     .swatch {
-      width: 28px; height: 28px;
+      width: 26px; height: 26px;
       border-radius: 50%;
       cursor: pointer;
-      border: 2.5px solid transparent;
+      border: 1.5px solid #484848;
       transition: border-color 0.15s;
     }
-    .swatch.active { border-color: var(--accent); }
+    .swatch.active { border-color: var(--accent); outline-color: var(--accent); }
 
-    /* timer */
     #timer {
-      font-size: 1.3rem;
+      font-size: 1.2rem;
       font-weight: 700;
       color: var(--accent);
       text-align: center;
-      margin-top: 20px;
+      margin-top: 14px;
       letter-spacing: 3px;
-      opacity: 0.7;
+      opacity: 0;
+      transition: opacity 0.3s;
     }
+    #timer.visible { opacity: 0.7; }
+
+    .hint {
+      font-size: 0.75rem;
+      color: var(--subtext);
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    /* end overlay */
+    #end-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 1.2s ease;
+      z-index: 10;
+    }
+    #end-overlay.visible { opacity: 1; pointer-events: auto; }
+    #end-overlay span {
+      font-size: clamp(1.5rem, 6vw, 3.5rem);
+      font-weight: 900;
+      color: var(--accent);
+      letter-spacing: 0.12em;
+      text-shadow: 0 0 40px rgba(154,171,220,0.5);
+    }
+
+    /* hide-on-run */
+    .hide-on-run { transition: opacity 0.4s, visibility 0.4s; }
+    .hidden { opacity: 0 !important; visibility: hidden !important; pointer-events: none !important; }
+    .top-bar .hidden { display: none !important; }
   </style>
 </head>
 <body>
 
-  <h1>Free Online EMDR &amp; Bilateral Stimulation Tool</h1>
-  <p class="subtitle">Customizable visual and auditory stimulation for anxiety relief and focus.</p>
+  <h1 class="hide-on-run" data-i18n="title"></h1>
+  <p class="subtitle hide-on-run" data-i18n="subtitle"></p>
 
-  <div class="controls-top">
-    <button id="btnStart">Start Session</button>
-    <button id="btnStop" disabled>Stop</button>
+  <div class="top-bar">
+    <button id="btnToggle"></button>
+    <button id="btnFullscreen" class="hide-on-run" title="Fullscreen">⛶</button>
+    <button id="btnLang" class="hide-on-run">PT</button>
   </div>
 
-  <div id="canvas-wrap">
-    <div class="ball" id="leftBall"></div>
-    <div class="ball" id="rightBall"></div>
+  <div id="resizable">
+    <div id="canvas-wrap">
+      <div class="ball" id="leftBall"></div>
+      <div class="ball" id="rightBall"></div>
+      <div class="ball" id="singleBall"></div>
+      <div id="end-overlay"><span id="endMsg"></span></div>
+    </div>
   </div>
 
-  <div class="settings">
+  <div id="resize-handle"></div>
 
-    <div class="setting-row">
-      <label id="speedLabel">Speed (Rate): 1 Hz</label>
-      <input type="range" id="speedSlider" min="0.2" max="4" step="0.1" value="1" />
-    </div>
+  <div class="settings hide-on-run">
 
-    <div class="setting-row">
-      <label id="sharpLabel">Transition Sharpness: 8</label>
-      <input type="range" id="sharpSlider" min="1" max="20" step="1" value="8" />
-    </div>
-
-    <div class="setting-row">
-      <label>Canvas Color</label>
-      <div class="swatch-group" id="bgSwatches">
-        <div class="swatch active" data-color="#c5d5f0" style="background:#c5d5f0"></div>
-        <div class="swatch" data-color="#c5e8d0" style="background:#c5e8d0"></div>
-        <div class="swatch" data-color="#e8d0f0" style="background:#e8d0f0"></div>
-        <div class="swatch" data-color="#f0e8c5" style="background:#f0e8c5"></div>
-        <div class="swatch" data-color="#dde8f5" style="background:#dde8f5"></div>
+      <div class="setting-row">
+        <label id="speedLabel"></label>
+        <input type="range" id="speedSlider" min="0.2" max="3" step="0.1" value="1" />
       </div>
-    </div>
 
-    <div class="setting-row">
-      <label id="dotSizeLabel">Dot Size: 70px</label>
-      <input type="range" id="dotSizeSlider" min="20" max="140" step="5" value="70" />
-    </div>
+      <div class="setting-row">
+        <label data-i18n="ballMode"></label>
+        <select id="modeSelect">
+          <option value="dual" data-i18n="twoBalls"></option>
+          <option value="single" data-i18n="singleBall"></option>
+        </select>
+      </div>
 
-    <div class="setting-row">
-      <label>Auditory Stimulation</label>
-      <select id="audioSelect">
-        <option value="none">None</option>
-        <option value="tone">Tone (bilateral)</option>
-        <option value="click">Click (bilateral)</option>
-      </select>
-    </div>
+      <div class="setting-row">
+        <label id="sharpLabel"></label>
+        <input type="range" id="sharpSlider" min="1" max="20" step="1" value="8" />
+      </div>
 
-    <div class="setting-row">
-      <label id="volLabel">Volume: 60%</label>
-      <input type="range" id="volSlider" min="0" max="100" step="1" value="60" />
-    </div>
+      <div class="setting-row">
+        <label data-i18n="canvasColor"></label>
+        <div class="swatch-group" id="bgSwatches">
+          <div class="swatch active" data-color="#080810" style="background:#080810;border-color:#444"></div>
+          <div class="swatch" data-color="#0a1520" style="background:#0a1520"></div>
+          <div class="swatch" data-color="#0d0a20" style="background:#0d0a20"></div>
+          <div class="swatch" data-color="#100a0a" style="background:#100a0a"></div>
+          <div class="swatch" data-color="#0a1810" style="background:#0a1810"></div>
+        </div>
+      </div>
 
+      <div class="setting-row">
+        <label id="dotSizeLabel"></label>
+        <input type="range" id="dotSizeSlider" min="20" max="140" step="5" value="70" />
+      </div>
+
+      <div class="setting-row">
+        <label data-i18n="audioStim"></label>
+        <select id="audioSelect">
+          <option value="none" data-i18n="audioNone"></option>
+          <option value="tone" data-i18n="audioTone"></option>
+          <option value="click" data-i18n="audioClick"></option>
+        </select>
+      </div>
+
+      <div class="setting-row">
+        <label id="volLabel"></label>
+        <input type="range" id="volSlider" min="0" max="100" step="1" value="60" />
+      </div>
+
+      <div class="setting-row">
+        <label data-i18n="duration"></label>
+        <select id="durationSelect">
+          <option value="0"   data-i18n="durNone"></option>
+          <option value="60"  data-i18n="dur1m"></option>
+          <option value="120" data-i18n="dur2m"></option>
+          <option value="300" data-i18n="dur5m"></option>
+          <option value="600" data-i18n="dur10m"></option>
+          <option value="900" data-i18n="dur15m"></option>
+          <option value="1200" data-i18n="dur20m"></option>
+          <option value="1800" data-i18n="dur30m"></option>
+        </select>
+      </div>
+
+    </div>
   </div>
 
   <div id="timer">00:00</div>
+  <p class="hint hide-on-run" data-i18n="hint"></p>
 
 <script>
-// ── Constants (mirroring bilateralfocus.com) ────────────────────────────────
+// ── i18n ─────────────────────────────────────────────────────────────────────
+const LANGS = {
+  en: {
+    title:       'Free Online EMDR & Bilateral Stimulation Tool',
+    subtitle:    'Customizable visual and auditory stimulation for anxiety relief and focus.',
+    start:       '▶ Start Session',
+    stop:        'Stop',
+    ballMode:    'Ball Mode',
+    twoBalls:    'Two Balls',
+    singleBall:  'Single Ball',
+    canvasColor: 'Canvas Color',
+    audioStim:   'Auditory Stimulation',
+    audioNone:   'None',
+    audioTone:   'Tone (bilateral)',
+    audioClick:  'Click (bilateral)',
+    hint:        'Space bar to start / stop',
+    duration:    'Duration',
+    durNone:     'No limit',
+    dur1m:       '1 min', dur2m: '2 min', dur5m: '5 min',
+    dur10m:      '10 min', dur15m: '15 min', dur20m: '20 min', dur30m: '30 min',
+    endMsg:      'END',
+    speed:       (v) => `Speed (Rate): ${v} Hz`,
+    sharp:       (v) => `Transition Sharpness: ${v}`,
+    dotSize:     (v) => `Dot Size: ${v}px`,
+    vol:         (v) => `Volume: ${v}%`,
+  },
+  pt: {
+    title:       'Ferramenta EMDR & Estimulação Bilateral Online',
+    subtitle:    'Estimulação visual e auditiva personalizável para alívio de ansiedade e foco.',
+    start:       '▶ Iniciar Sessão',
+    stop:        'Parar',
+    ballMode:    'Modo de Bola',
+    twoBalls:    'Duas Bolas',
+    singleBall:  'Bola Única',
+    canvasColor: 'Cor do Fundo',
+    audioStim:   'Estimulação Auditiva',
+    audioNone:   'Nenhuma',
+    audioTone:   'Tom (bilateral)',
+    audioClick:  'Clique (bilateral)',
+    hint:        'Barra de espaço para iniciar / parar',
+    duration:    'Duração',
+    durNone:     'Sem limite',
+    dur1m:       '1 min', dur2m: '2 min', dur5m: '5 min',
+    dur10m:      '10 min', dur15m: '15 min', dur20m: '20 min', dur30m: '30 min',
+    endMsg:      'FIM',
+    speed:       (v) => `Velocidade: ${v} Hz`,
+    sharp:       (v) => `Nitidez da Transição: ${v}`,
+    dotSize:     (v) => `Tamanho da Bola: ${v}px`,
+    vol:         (v) => `Volume: ${v}%`,
+  },
+};
+
+let currentLang = 'en';
+
+function applyLang() {
+  const t = LANGS[currentLang];
+  document.documentElement.lang = currentLang;
+
+  // static keys
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    if (t[key] !== undefined) el.textContent = t[key];
+  });
+
+  // dynamic labels
+  speedLabel.textContent    = t.speed(parseFloat(speedSlider.value).toFixed(1));
+  sharpLabel.textContent    = t.sharp(sharpSlider.value);
+  dotSizeLabel.textContent  = t.dotSize(dotSize());
+  volLabel.textContent      = t.vol(volSlider.value);
+
+  // toggle button text
+  btnToggle.textContent = state.running ? t.stop : t.start;
+
+  // lang toggle label shows the OTHER language
+  btnLang.textContent = currentLang === 'en' ? 'PT' : 'EN';
+}
+
+// ── Constants ────────────────────────────────────────────────────────────────
 const ANIMATION = {
-  CENTER_POSITION: 50,
-  MOVEMENT_RANGE: 40,      // % of container width each ball travels from center
+  MOVEMENT_RANGE: 40,
   MIN_GAIN_VALUE: 0.001,
   RESIZE_DEBOUNCE_MS: 100,
 };
@@ -258,7 +482,7 @@ const AUDIO = {
   CROSSFADE: 0.05,
 };
 
-// ── State ───────────────────────────────────────────────────────────────────
+// ── State ────────────────────────────────────────────────────────────────────
 const state = {
   running: false,
   animFrameId: null,
@@ -275,12 +499,15 @@ const state = {
 
 let cachedContainerWidth = 0;
 
-// ── DOM ─────────────────────────────────────────────────────────────────────
+// ── DOM ──────────────────────────────────────────────────────────────────────
 const leftBall      = document.getElementById('leftBall');
 const rightBall     = document.getElementById('rightBall');
+const singleBall    = document.getElementById('singleBall');
 const canvasWrap    = document.getElementById('canvas-wrap');
-const btnStart      = document.getElementById('btnStart');
-const btnStop       = document.getElementById('btnStop');
+const resizable     = document.getElementById('resizable');
+const btnToggle     = document.getElementById('btnToggle');
+const btnFullscreen = document.getElementById('btnFullscreen');
+const btnLang       = document.getElementById('btnLang');
 const speedSlider   = document.getElementById('speedSlider');
 const speedLabel    = document.getElementById('speedLabel');
 const sharpSlider   = document.getElementById('sharpSlider');
@@ -290,56 +517,71 @@ const dotSizeLabel  = document.getElementById('dotSizeLabel');
 const volSlider     = document.getElementById('volSlider');
 const volLabel      = document.getElementById('volLabel');
 const audioSelect   = document.getElementById('audioSelect');
-const timerEl       = document.getElementById('timer');
+const modeSelect    = document.getElementById('modeSelect');
+const timerEl        = document.getElementById('timer');
+const resizeHandle   = document.getElementById('resize-handle');
+const durationSelect = document.getElementById('durationSelect');
+const endOverlay     = document.getElementById('end-overlay');
+const endMsgEl       = document.getElementById('endMsg');
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
-function rate()      { return parseFloat(speedSlider.value); }
-function sharpness() { return parseInt(sharpSlider.value, 10); }
-function dotSize()   { return parseInt(dotSizeSlider.value, 10); }
-function volume()    { return parseInt(volSlider.value, 10) / 100; }
+// ── Helpers ──────────────────────────────────────────────────────────────────
+const rate      = () => parseFloat(speedSlider.value);
+const sharpness = () => parseInt(sharpSlider.value, 10);
+const dotSize   = () => parseInt(dotSizeSlider.value, 10);
+const volume    = () => parseInt(volSlider.value, 10) / 100;
+const mode      = () => modeSelect.value;
+const t         = () => LANGS[currentLang];
 
-function updateCachedWidth() {
-  cachedContainerWidth = canvasWrap.clientWidth;
-}
+function updateCachedWidth() { cachedContainerWidth = canvasWrap.clientWidth; }
 
 function applyDotSize() {
   const s = dotSize() + 'px';
-  leftBall.style.width  = leftBall.style.height  = s;
-  rightBall.style.width = rightBall.style.height = s;
+  [leftBall, rightBall, singleBall].forEach(b => b.style.width = b.style.height = s);
 }
 
 function resetBalls() {
-  leftBall.style.transform  = 'translate(-50%, -50%)';
-  leftBall.style.opacity    = '0';
-  rightBall.style.transform = 'translate(-50%, -50%)';
-  rightBall.style.opacity   = '0';
+  [leftBall, rightBall, singleBall].forEach(b => {
+    b.style.transform = 'translate(-50%, -50%)';
+    b.style.opacity   = '0';
+  });
 }
 
-// ── Animation loop (exact algorithm from bilateralfocus.com) ────────────────
+function setRunningUI(running) {
+  const inFS = !!document.fullscreenElement;
+  document.querySelectorAll('.hide-on-run').forEach(el => el.classList.toggle('hidden', running && inFS));
+  btnToggle.textContent = running ? t().stop : t().start;
+  btnToggle.classList.toggle('running', running);
+  timerEl.classList.toggle('visible', running);
+}
+
+// ── Animation ────────────────────────────────────────────────────────────────
 function animateBalls() {
   if (!state.running) return;
 
-  const elapsed = (performance.now() - state.startTime) / 1000;
-  const r = rate();
-  const sh = sharpness();
-
-  const phase    = Math.PI * r * elapsed;
-  const rawValue = Math.sin(phase);
-
-  // tanh-based smooth transition — the "special effect"
+  const elapsed  = (performance.now() - state.startTime) / 1000;
+  const rawValue = Math.sin(Math.PI * rate() * elapsed);
+  const sh       = sharpness();
   const leftValue  = 0.5 * (1 + Math.tanh(sh * rawValue));
   const rightValue = 1.0 - leftValue;
 
-  // Position: each ball starts at center (left:50%) and moves outward
-  const lOffset = -(ANIMATION.MOVEMENT_RANGE * leftValue)  * cachedContainerWidth / 100;
-  const rOffset =  (ANIMATION.MOVEMENT_RANGE * rightValue) * cachedContainerWidth / 100;
+  if (mode() === 'dual') {
+    leftBall.style.display = rightBall.style.display = 'block';
+    singleBall.style.display = 'none';
+    const lOff = -(ANIMATION.MOVEMENT_RANGE * leftValue)  * cachedContainerWidth / 100;
+    const rOff =  (ANIMATION.MOVEMENT_RANGE * rightValue) * cachedContainerWidth / 100;
+    leftBall.style.transform  = `translate(calc(-50% + ${lOff}px), -50%)`;
+    leftBall.style.opacity    = leftValue;
+    rightBall.style.transform = `translate(calc(-50% + ${rOff}px), -50%)`;
+    rightBall.style.opacity   = rightValue;
+  } else {
+    leftBall.style.display = rightBall.style.display = 'none';
+    singleBall.style.display = 'block';
+    const norm   = Math.tanh(sh * rawValue) / Math.tanh(sh);
+    const offset = norm * ANIMATION.MOVEMENT_RANGE * cachedContainerWidth / 100;
+    singleBall.style.transform = `translate(calc(-50% + ${offset}px), -50%)`;
+    singleBall.style.opacity   = '1';
+  }
 
-  leftBall.style.transform  = `translate(calc(-50% + ${lOffset}px), -50%)`;
-  leftBall.style.opacity    = leftValue;
-  rightBall.style.transform = `translate(calc(-50% + ${rOffset}px), -50%)`;
-  rightBall.style.opacity   = rightValue;
-
-  // Audio
   if (state.audioEnabled && state.audioCtx?.state === 'running' && state.leftGain && state.rightGain) {
     const now = state.audioCtx.currentTime;
     state.leftGain.gain.setTargetAtTime(Math.max(ANIMATION.MIN_GAIN_VALUE, leftValue),  now, AUDIO.CROSSFADE);
@@ -349,15 +591,12 @@ function animateBalls() {
   state.animFrameId = requestAnimationFrame(animateBalls);
 }
 
-// ── Audio ───────────────────────────────────────────────────────────────────
+// ── Audio ────────────────────────────────────────────────────────────────────
 function setupAudio() {
   const type = audioSelect.value;
   if (type === 'none') return;
-
   try {
-    if (!state.audioCtx) {
-      state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
+    if (!state.audioCtx) state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (state.audioCtx.state === 'suspended') state.audioCtx.resume();
 
     if (type === 'tone') {
@@ -365,47 +604,34 @@ function setupAudio() {
       state.oscillator.type = 'sine';
       state.oscillator.frequency.value = 300;
     } else {
-      // click: noise buffer looped
       const buf = state.audioCtx.createBuffer(1, state.audioCtx.sampleRate * 0.04, state.audioCtx.sampleRate);
       const data = buf.getChannelData(0);
       for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
       state.oscillator = state.audioCtx.createBufferSource();
       state.oscillator.buffer = buf;
-      state.oscillator.loop = true;
+      state.oscillator.loop   = true;
     }
 
-    state.leftGain  = state.audioCtx.createGain();
+    state.leftGain = state.audioCtx.createGain();
     state.rightGain = state.audioCtx.createGain();
-    state.leftGain.gain.value  = 0;
-    state.rightGain.gain.value = 0;
+    state.leftGain.gain.value = state.rightGain.gain.value = 0;
 
-    const masterGain = state.audioCtx.createGain();
-    masterGain.gain.value = volume();
+    const master = state.audioCtx.createGain();
+    master.gain.value = volume();
+    const lPan = state.audioCtx.createStereoPanner(); lPan.pan.value = -1;
+    const rPan = state.audioCtx.createStereoPanner(); rPan.pan.value =  1;
 
-    const leftPanner  = state.audioCtx.createStereoPanner();
-    const rightPanner = state.audioCtx.createStereoPanner();
-    leftPanner.pan.value  = -1;
-    rightPanner.pan.value =  1;
-
-    state.oscillator.connect(state.leftGain);
-    state.oscillator.connect(state.rightGain);
-    state.leftGain.connect(leftPanner);
-    state.rightGain.connect(rightPanner);
-    leftPanner.connect(masterGain);
-    rightPanner.connect(masterGain);
-    masterGain.connect(state.audioCtx.destination);
-
+    state.oscillator.connect(state.leftGain);  state.leftGain.connect(lPan);  lPan.connect(master);
+    state.oscillator.connect(state.rightGain); state.rightGain.connect(rPan); rPan.connect(master);
+    master.connect(state.audioCtx.destination);
     state.oscillator.start();
     state.audioEnabled = true;
-  } catch(e) {
-    console.error('Audio error:', e);
-  }
+  } catch(e) { console.error('Audio error:', e); }
 }
 
 function cleanupAudio() {
   if (state.cleanupTimeoutId) { clearTimeout(state.cleanupTimeoutId); state.cleanupTimeoutId = null; }
   if (!state.audioCtx || !state.oscillator) return;
-
   const now = state.audioCtx.currentTime;
   const osc = state.oscillator;
   if (state.leftGain && state.rightGain) {
@@ -416,61 +642,102 @@ function cleanupAudio() {
   }
   state.cleanupTimeoutId = setTimeout(() => {
     try { osc.stop(); } catch(e) {}
-    state.oscillator = null;
-    state.cleanupTimeoutId = null;
+    state.oscillator = null; state.cleanupTimeoutId = null;
   }, AUDIO.STOP_DELAY_MS);
   state.audioEnabled = false;
 }
 
-// ── Session ─────────────────────────────────────────────────────────────────
-async function startSession() {
+// ── Session ──────────────────────────────────────────────────────────────────
+function fmt(s) { return String(Math.floor(s / 60)).padStart(2,'0') + ':' + String(s % 60).padStart(2,'0'); }
+
+function startSession() {
   if (state.running) return;
+  endOverlay.classList.remove('visible');
   state.running = true;
-  btnStart.disabled = true;
-  btnStop.disabled  = false;
-
   updateCachedWidth();
-  state.startTime   = performance.now();
+  state.startTime    = performance.now();
   state.sessionStart = Date.now();
+  const dur = parseInt(durationSelect.value, 10);
   state.timerIntervalId = setInterval(() => {
-    const s = Math.floor((Date.now() - state.sessionStart) / 1000);
-    timerEl.textContent = String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+    const elapsed = Math.floor((Date.now() - state.sessionStart) / 1000);
+    if (dur > 0) {
+      const remaining = dur - elapsed;
+      if (remaining <= 0) { endSession(); return; }
+      timerEl.textContent = fmt(remaining);
+    } else {
+      timerEl.textContent = fmt(elapsed);
+    }
   }, 1000);
-
+  timerEl.textContent = dur > 0 ? fmt(dur) : '00:00';
+  setRunningUI(true);
   setupAudio();
   animateBalls();
 }
 
-function stopSession() {
+function endSession() {
   if (!state.running) return;
   state.running = false;
-  btnStart.disabled = false;
-  btnStop.disabled  = true;
   cancelAnimationFrame(state.animFrameId);
   clearInterval(state.timerIntervalId);
   cleanupAudio();
   resetBalls();
+  endMsgEl.textContent = t().endMsg;
+  endOverlay.classList.add('visible');
+  setRunningUI(false);
 }
 
-btnStart.addEventListener('click', startSession);
-btnStop.addEventListener('click',  stopSession);
+function stopSession() {
+  endOverlay.classList.remove('visible');
+  if (!state.running) return;
+  state.running = false;
+  cancelAnimationFrame(state.animFrameId);
+  clearInterval(state.timerIntervalId);
+  cleanupAudio();
+  resetBalls();
+  setRunningUI(false);
+}
 
-// ── Controls ─────────────────────────────────────────────────────────────────
+function toggleSession() { state.running ? stopSession() : startSession(); }
+
+// ── Events ───────────────────────────────────────────────────────────────────
+btnToggle.addEventListener('click', toggleSession);
+
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if (e.code === 'Space') { e.preventDefault(); toggleSession(); }
+  if (e.code === 'KeyF')  { document.fullscreenElement ? document.exitFullscreen?.() : document.documentElement.requestFullscreen?.(); }
+});
+
+btnFullscreen.addEventListener('click', () => {
+  document.fullscreenElement ? document.exitFullscreen?.() : document.documentElement.requestFullscreen?.();
+});
+document.addEventListener('fullscreenchange', () => {
+  btnFullscreen.textContent = document.fullscreenElement ? '✕' : '⛶';
+  if (!document.fullscreenElement) {
+    fsPad = 0;
+    document.documentElement.style.removeProperty('--fs-pad');
+  }
+  updateCachedWidth();
+  setRunningUI(state.running);
+});
+
+btnLang.addEventListener('click', () => {
+  currentLang = currentLang === 'en' ? 'pt' : 'en';
+  applyLang();
+});
+
 speedSlider.addEventListener('input', () => {
-  speedLabel.textContent = `Speed (Rate): ${parseFloat(speedSlider.value).toFixed(1)} Hz`;
+  speedLabel.textContent = t().speed(parseFloat(speedSlider.value).toFixed(1));
 });
-
 sharpSlider.addEventListener('input', () => {
-  sharpLabel.textContent = `Transition Sharpness: ${sharpSlider.value}`;
+  sharpLabel.textContent = t().sharp(sharpSlider.value);
 });
-
 dotSizeSlider.addEventListener('input', () => {
-  dotSizeLabel.textContent = `Dot Size: ${dotSize()}px`;
+  dotSizeLabel.textContent = t().dotSize(dotSize());
   applyDotSize();
 });
-
 volSlider.addEventListener('input', () => {
-  volLabel.textContent = `Volume: ${volSlider.value}%`;
+  volLabel.textContent = t().vol(volSlider.value);
 });
 
 document.getElementById('bgSwatches').addEventListener('click', e => {
@@ -481,21 +748,58 @@ document.getElementById('bgSwatches').addEventListener('click', e => {
   canvasWrap.style.background = sw.dataset.color;
 });
 
-// resize
+
+// Resize handle
+let fsPad = 0; // fullscreen horizontal padding per side (px)
+
+function applyResize(delta) {
+  if (document.fullscreenElement) {
+    fsPad = Math.max(0, Math.min(window.innerWidth / 2 - 150, fsPad + delta));
+    document.documentElement.style.setProperty('--fs-pad', fsPad + 'px');
+  } else {
+    resizable.style.width = Math.max(300, Math.min(window.innerWidth, resizable.offsetWidth + delta)) + 'px';
+  }
+  updateCachedWidth();
+}
+
+resizeHandle.addEventListener('mousedown', e => {
+  e.preventDefault();
+  let lastX = e.clientX;
+  const onMove = ev => {
+    const dx = ev.clientX - lastX;
+    lastX = ev.clientX;
+    // In fullscreen: drag right = more padding (narrower); drag left = less padding
+    applyResize(document.fullscreenElement ? dx : dx * 2);
+  };
+  const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+});
+resizeHandle.addEventListener('touchstart', e => {
+  let lastX = e.touches[0].clientX;
+  const onMove = ev => {
+    const dx = ev.touches[0].clientX - lastX;
+    lastX = ev.touches[0].clientX;
+    applyResize(document.fullscreenElement ? dx : dx * 2);
+  };
+  const onEnd = () => { window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onEnd); };
+  window.addEventListener('touchmove', onMove);
+  window.addEventListener('touchend', onEnd);
+}, { passive: true });
+
 let resizeTimer;
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(updateCachedWidth, ANIMATION.RESIZE_DEBOUNCE_MS);
 });
 
-// visibility
 document.addEventListener('visibilitychange', () => {
   if (!state.audioCtx) return;
-  if (document.hidden) { state.audioCtx.suspend(); }
-  else if (state.running) { state.audioCtx.resume(); }
+  document.hidden ? state.audioCtx.suspend() : (state.running && state.audioCtx.resume());
 });
 
-// ── Init ─────────────────────────────────────────────────────────────────────
+// ── Init ──────────────────────────────────────────────────────────────────────
+applyLang();
 applyDotSize();
 updateCachedWidth();
 </script>
